@@ -327,79 +327,73 @@
                     if(Game.active && KEYS[k]) Game.hit(KEYS[k].p, KEYS[k].i);
                 });
             },
-            skipIntro: () => {
-                document.getElementById('intro-vid').pause();
+          skipIntro: () => {
+                const vid = document.getElementById('intro-vid');
+                vid.pause();
                 document.getElementById('intro-container').style.display = 'none';
-                Menu.toMain();
+                
+                AudioSys.startBGM(); // 🎵 เพิ่มบรรทัดนี้ เพื่อให้เพลงดังขึ้นมาเลยตอนวิดีโอจบ/โดนข้าม
+                
+                Menu.toLevel(); 
             }
         };
 
-        // --- AUDIO ---
+        // --- AUDIO SYSTEM (ใส่เพลง MP3) ---
         const AudioSys = {
-            ctx: null, bgmNode: null, bgmOn: true, sfxOn: true,
-            init: () => { 
-                if(!AudioSys.ctx) AudioSys.ctx = new (window.AudioContext || window.webkitAudioContext)(); 
+            ctx: null, 
+            bgmOn: true, sfxOn: true, 
+            bgmAudio: new Audio('bgm.mp3'), // 🎵 เปลี่ยนชื่อไฟล์ตรงนี้ให้ตรงกับของคุณ
+
+            init: () => {
+                if(!AudioSys.ctx) AudioSys.ctx = new (window.AudioContext || window.webkitAudioContext)();
                 if(AudioSys.ctx.state === 'suspended') AudioSys.ctx.resume();
+                
+                // ตั้งค่าเพลงพื้นหลัง
+                AudioSys.bgmAudio.loop = true;  // ให้เล่นวนซ้ำ
+                AudioSys.bgmAudio.volume = 0.4; // ปรับความดัง 0.0 (เงียบสุด) ถึง 1.0 (ดังสุด)
             },
+
             toggleBGM: () => {
                 AudioSys.bgmOn = !AudioSys.bgmOn;
                 document.getElementById('btn-bgm').innerText = AudioSys.bgmOn ? "ON" : "OFF";
-                document.getElementById('btn-bgm').style.color = AudioSys.bgmOn ? "#FFB300" : "#888";
+                if(AudioSys.bgmOn) AudioSys.startBGM();
+                else AudioSys.stopBGM();
             },
+
             toggleSFX: () => {
                 AudioSys.sfxOn = !AudioSys.sfxOn;
                 document.getElementById('btn-sfx').innerText = AudioSys.sfxOn ? "ON" : "OFF";
-                document.getElementById('btn-sfx').style.color = AudioSys.sfxOn ? "#FFB300" : "#888";
             },
-            playSFX: (type) => {
+
+            playSFX: (type) => { // เอฟเฟกต์ตอนตีตุ่นยังใช้เสียงเดิม
                 if(!AudioSys.sfxOn || !AudioSys.ctx) return;
                 const t = AudioSys.ctx.currentTime;
                 const o = AudioSys.ctx.createOscillator();
                 const g = AudioSys.ctx.createGain();
                 o.connect(g); g.connect(AudioSys.ctx.destination);
 
-                if(type === 'hit') {
-                    o.frequency.setValueAtTime(500, t); o.frequency.linearRampToValueAtTime(800, t+0.1);
+                if(type==='hit') {
+                    o.frequency.setValueAtTime(600, t); o.frequency.exponentialRampToValueAtTime(1200, t+0.1);
                     g.gain.setValueAtTime(0.2, t); g.gain.linearRampToValueAtTime(0, t+0.1);
                     o.start(t); o.stop(t+0.1);
-                } else if(type === 'gold') {
-                    o.type = 'sine'; o.frequency.setValueAtTime(1000, t); o.frequency.linearRampToValueAtTime(1500, t+0.2);
-                    g.gain.setValueAtTime(0.2, t); g.gain.linearRampToValueAtTime(0, t+0.2);
-                    o.start(t); o.stop(t+0.2);
-                } else if(type === 'bomb') {
-                    o.type = 'square'; o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(50, t+0.4);
-                    g.gain.setValueAtTime(0.5, t); g.gain.linearRampToValueAtTime(0, t+0.4);
-                    o.start(t); o.stop(t+0.4);
-                } else if(type === 'boss') {
-                    o.type = 'sawtooth'; o.frequency.setValueAtTime(100, t); o.frequency.linearRampToValueAtTime(50, t+0.5);
+                } else if(type==='boss') {
+                    o.type='sawtooth'; o.frequency.setValueAtTime(150, t); o.frequency.linearRampToValueAtTime(50, t+0.5);
                     g.gain.setValueAtTime(0.5, t); g.gain.linearRampToValueAtTime(0, t+0.5);
                     o.start(t); o.stop(t+0.5);
+                } else if(type==='bomb') {
+                    o.type='square'; o.frequency.setValueAtTime(200, t); o.frequency.exponentialRampToValueAtTime(50, t+0.4);
+                    g.gain.setValueAtTime(0.5, t); g.gain.linearRampToValueAtTime(0, t+0.4);
+                    o.start(t); o.stop(t+0.4);
                 }
             },
+
             startBGM: () => {
-                if(AudioSys.bgmNode) return;
-                let step = 0;
-                AudioSys.bgmNode = setInterval(() => {
-                    if(!AudioSys.bgmOn) return;
-                    const t = AudioSys.ctx.currentTime;
-                    const o = AudioSys.ctx.createOscillator();
-                    const g = AudioSys.ctx.createGain();
-                    o.connect(g); g.connect(AudioSys.ctx.destination);
-                    
-                    if(step%4===0) { 
-                        o.frequency.setValueAtTime(150, t); 
-                        g.gain.setValueAtTime(0.1, t); g.gain.linearRampToValueAtTime(0, t+0.1);
-                        o.start(t); o.stop(t+0.1);
-                    }
-                    if(Math.random()>0.6) {
-                        o.type='triangle'; o.frequency.setValueAtTime(300 + Math.random()*300, t);
-                        g.gain.setValueAtTime(0.05, t); g.gain.linearRampToValueAtTime(0, t+0.2);
-                        o.start(t); o.stop(t+0.2);
-                    }
-                    step++;
-                }, 200);
+                if(!AudioSys.bgmOn) return;
+                AudioSys.bgmAudio.play().catch(e => console.log("รอผู้เล่นคลิกหน้าจอก่อนถึงเล่นเพลงได้"));
             },
-            stopBGM: () => { clearInterval(AudioSys.bgmNode); AudioSys.bgmNode = null; }
+            stopBGM: () => { 
+                AudioSys.bgmAudio.pause(); 
+            }
         };
 
         // --- MENU ---
@@ -584,3 +578,4 @@
     </script>
 </body>
 </html>
+
